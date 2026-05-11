@@ -3,8 +3,10 @@
 A voice companion for Star Citizen. Push-to-talk, asks an LLM brain (OpenAI
 GPT-5 nano with vision, or MiniMax M2.7), replies via Deepgram Aura-2 voice
 + a transparent overlay. Built around a VKB Gladiator NTX EVO dual-stick
-setup — once you drop your binding doc into `data/vkb_bindings.md`, the
-assistant will answer "how do I X?" in terms of which stick button to press.
+setup with BuzZz Killer's Dual VKB profile — the brain knows all 223 stick
+bindings plus SC's vanilla keyboard defaults, so it can press keys for you
+("open mobiglas" → presses F1) and answer "how do I X?" questions in terms
+of your actual layout.
 
 Forked from [x4-companion](https://github.com/<owner>/x4-companion). Same
 architecture, different game-specific bits (system prompt, bindings, action
@@ -66,9 +68,15 @@ python -m sc_companion
 ```
 
 A tray icon appears with a Brain submenu — switch between OpenAI (GPT-5
-nano), OpenAI + Web, and MiniMax at runtime. Press and hold **Home** (or
-whichever key you bind your VKB controller to send), speak your question,
-release. The reply shows in a small overlay top-right and is spoken aloud.
+nano), OpenAI + Web, and MiniMax at runtime. **Your active brain choice
+is persisted** to `~/.sc-companion/config.toml` and survives restarts.
+Only one instance runs at a time — double-clicking the launcher while
+the tray icon is already there will pop a "already running" messagebox
+and exit, not run a duplicate.
+
+Press and hold **Home** (or whichever key you bind your VKB controller
+to send), speak your question, release. The reply shows in a small
+overlay top-right and is spoken aloud.
 
 ## Configuration
 
@@ -115,17 +123,59 @@ HAT, etc.) that the chart PDFs map to the numeric `button N` references.
 
 ## Keyboard execution
 
-The brain can press keyboard keys for you (e.g., "open mobiglas" → presses
-`F1`). The list of safe defaults lives at
-`src/sc_companion/data/sc_keyboard_defaults.md` and is also a stub — fill
-in your actual bindings before relying on action execution.
+The brain presses keys via the `propose_sc_action` tool. Source-of-truth
+for which key maps to which action is
+`src/sc_companion/data/sc_keyboard_defaults.md`, generated from
+`sc_defaults_3.0.xml` by `scripts/extract_sc_keyboard_defaults.py`.
 
-Safety: only an allowlisted set of keys is ever pressed; Win key, Alt+F4,
-Ctrl+Alt+Del are hard-blocked. The companion also refuses to send keys
-unless Star Citizen is the foreground window.
+**When the brain presses a wrong key** (SC defaults drift between
+patches), add an entry to the `PATCH_OVERRIDES` dict at the top of
+`scripts/extract_sc_keyboard_defaults.py`, then re-run the script:
+
+```python
+PATCH_OVERRIDES: dict[str, str] = {
+    "v_power_toggle": "u",  # 4.x: U (was 5 in the 3.0 dump)
+    # add more as you spot them during play
+}
+```
+
+```
+python scripts/extract_sc_keyboard_defaults.py
+```
+
+The brain's prompt also tells it: when asked to do something, **press
+the key, don't describe the stick**. If an action has no keyboard
+binding (joystick-only in your profile, or new since the 3.0 dump),
+the brain declines with "I can't press that — no keyboard binding I
+can use." It will not tell you which stick button to press in that
+case — that's deliberate per user preference.
+
+### Safety
+
+- Only an allowlisted set of keys is ever pressed; Win key, Alt+F4,
+  Ctrl+Alt+Del are hard-blocked.
+- The companion refuses to send keys unless Star Citizen is the
+  foreground window.
+- If the brain ever proposes a joystick name (e.g. "button 26") as a
+  keyboard key, the extraction layer drops it and rewrites the spoken
+  reply to "I can't press that" — no fake announcement.
+
+## Vendored data + licenses
+
+- `src/sc_companion/data/Dual VKB Gladiator NXT/` — BuzZz Killer's Dual
+  VKB Gladiator EVO Pro profile for SC 4.6 (XML actionmap, Ground/Ship
+  chart PDFs, JoyToKey configs). Source:
+  [Spectrum thread](https://robertsspaceindustries.com/spectrum/community/SC/forum/50174/thread/buzzz-killer-s-recommended-exported-bindings).
+- `src/sc_companion/data/sc_defaults_3.0.xml` — Ben Humpert, *All
+  Keybindings using ADVANCED CONTROLS* (SC 3.0 dump), licensed
+  **CC BY-SA 4.0**. Source:
+  [GitHub gist](https://gist.github.com/an3k/1fe4a6782e1d21e7821f64af208a22b5).
+  Any redistribution of derivatives of this file (including the
+  generated `sc_keyboard_defaults.md`) must preserve the attribution
+  and share-alike terms.
 
 ## Manual test plan
 
 After install, walk through `docs/manual-test.md` once to verify capture,
-mic, hotkey, overlay, brain switching, and binding-aware replies all
-behave.
+mic, hotkey, overlay, brain switching, action execution, and binding-aware
+replies all behave.
