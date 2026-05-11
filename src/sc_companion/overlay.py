@@ -39,6 +39,10 @@ class Overlay(QLabel):
         self._fade_timer.timeout.connect(self.hide)
 
     def show_text(self, text: str) -> None:
+        # Hide first so the OS window region clears. Translucent + frameless
+        # windows don't repaint cleanly when shrinking on setText alone, which
+        # leaves ghosted pixels of the previous reply behind the new one.
+        self.hide()
         self.setText(text)
         self.adjustSize()
         self._reposition()
