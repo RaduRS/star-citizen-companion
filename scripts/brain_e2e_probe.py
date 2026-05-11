@@ -12,7 +12,7 @@ if not api_key:
     print("set MINIMAX_API_KEY", file=sys.stderr)
     sys.exit(2)
 
-img_path = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "x4_screenshot.png"
+img_path = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "sc_screenshot.png"
 frame = img_path.read_bytes()
 
 

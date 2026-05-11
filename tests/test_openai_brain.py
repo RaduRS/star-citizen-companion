@@ -58,10 +58,10 @@ def _tool_types(call) -> list[str]:
 
 @pytest.mark.asyncio
 async def test_openai_brain_calls_responses_api_with_image_and_query(fake_client):
-    fake_client.responses.set_reply("That's a Teladi station.")
+    fake_client.responses.set_reply("That's a Hurston cargo platform.")
     brain = OpenAIBrain(api_key="oa-test", web_search=False, actions_enabled=False)
     reply = await brain.answer(b"\xff\xd8\xff\xe0BYTES", "what is this?")
-    assert reply.text == "That's a Teladi station."
+    assert reply.text == "That's a Hurston cargo platform."
     assert reply.pending_action is None
 
     call = fake_client.responses.calls[-1]

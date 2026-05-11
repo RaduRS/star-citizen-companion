@@ -127,6 +127,5 @@ unless Star Citizen is the foreground window.
 ## Manual test plan
 
 After install, walk through `docs/manual-test.md` once to verify capture,
-mic, hotkey, overlay, and quota all behave. (Note: the manual test doc was
-inherited from x4-companion and still references X4 in places — adjust as
-you go.)
+mic, hotkey, overlay, brain switching, and binding-aware replies all
+behave.

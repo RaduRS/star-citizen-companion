@@ -1,4 +1,5 @@
 import os
+import re
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -67,3 +68,40 @@ def load_config(path: Path = DEFAULT_PATH) -> Config:
             openai_api_key=os.environ.get("OPENAI_API_KEY", ""),
         ),
     )
+
+
+_BRAIN_HEADER_RE = re.compile(r"^\[brain\][ \t]*$", re.MULTILINE)
+_NEXT_SECTION_RE = re.compile(r"^\[", re.MULTILINE)
+# Use [ \t]* not \s* — \s eats newlines and would consume the line above.
+_DEFAULT_LINE_RE = re.compile(r"^[ \t]*default[ \t]*=[ \t]*.*$", re.MULTILINE)
+
+
+def save_brain_default(brain_key: str, path: Path = DEFAULT_PATH) -> None:
+    """Surgically write `default = "<brain_key>"` into the [brain] section of
+    config.toml. Creates the file (and parent dir) if missing. Preserves any
+    other sections, keys, and comments the user may have added."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    new_line = f'default = "{brain_key}"'
+
+    if not path.exists():
+        path.write_text(f"[brain]\n{new_line}\n", encoding="utf-8")
+        return
+
+    text = path.read_text(encoding="utf-8")
+    header = _BRAIN_HEADER_RE.search(text)
+    if header is None:
+        sep = "" if text.endswith("\n") or not text else "\n"
+        path.write_text(f"{text}{sep}\n[brain]\n{new_line}\n", encoding="utf-8")
+        return
+
+    section_start = header.end()
+    next_section = _NEXT_SECTION_RE.search(text, pos=section_start + 1)
+    section_end = next_section.start() if next_section else len(text)
+    section = text[section_start:section_end]
+
+    if _DEFAULT_LINE_RE.search(section):
+        section = _DEFAULT_LINE_RE.sub(new_line, section, count=1)
+    else:
+        section = "\n" + new_line + section
+
+    path.write_text(text[:section_start] + section + text[section_end:], encoding="utf-8")

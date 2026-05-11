@@ -10,11 +10,11 @@ VLM_URL = "https://api.minimax.io/v1/coding_plan/vlm"
 @respx.mock
 async def test_minimax_brain_calls_api_with_image_and_query():
     route = respx.post(VLM_URL).mock(
-        return_value=Response(200, json={"content": "That's a Teladi station."})
+        return_value=Response(200, json={"content": "That's a Hurston cargo platform."})
     )
     brain = MiniMaxBrain(api_key="mm-test")
     reply = await brain.answer(b"PNGBYTES", "what is this?")
-    assert reply.text == "That's a Teladi station."
+    assert reply.text == "That's a Hurston cargo platform."
     assert reply.pending_action is None
     body = route.calls.last.request.read().decode()
     assert "what is this?" in body

@@ -45,4 +45,4 @@ a regression check / diagnostic.
 - `scripts/minimax_smoke.py` (chat endpoint, broken) → 200, model asks for the image
 - `scripts/minimax_vlm_probe.py` (VLM endpoint, working) → 200, model describes the image
 
-Both probes use `tests/fixtures/x4_screenshot.png`.
+Both probes use `tests/fixtures/sc_screenshot.png`.

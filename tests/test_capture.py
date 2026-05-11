@@ -1,7 +1,7 @@
 from pathlib import Path
 from sc_companion.capture import FakeCapture
 
-FIXTURE = Path(__file__).parent / "fixtures" / "x4_screenshot.png"
+FIXTURE = Path(__file__).parent / "fixtures" / "sc_screenshot.png"
 
 def test_fake_capture_returns_supplied_bytes():
     data = FIXTURE.read_bytes()

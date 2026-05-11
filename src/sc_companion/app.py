@@ -12,7 +12,7 @@ from PySide6.QtWidgets import QApplication
 from .audio import AudioPlayer, AudioRecorder
 from .brain import Brain, ProposedAction
 from .capture import Capture, DxcamCapture
-from .config import Config, load_config
+from .config import Config, load_config, save_brain_default
 from .hotkey import Hotkey
 from .minimax_brain import MiniMaxBrain
 from .openai_brain import OpenAIBrain
@@ -182,6 +182,10 @@ class App:
             label = dict(BRAIN_OPTIONS).get(key, key)
             self.bridge.show_text.emit(f"(switched to {label})")
             log.info("brain switched to %s", key)
+            try:
+                save_brain_default(key)
+            except Exception as e:
+                log.warning("failed to persist brain default: %s", e)
 
     def _run_loop(self) -> None:
         asyncio.set_event_loop(self._loop)
