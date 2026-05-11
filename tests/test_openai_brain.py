@@ -116,6 +116,46 @@ async def test_openai_brain_extracts_proposed_action_from_function_call(fake_cli
 
 
 @pytest.mark.asyncio
+async def test_openai_brain_rejects_joystick_leaked_into_keys(fake_client):
+    """If the model proposes 'R-Ctrl + button 26' as a keyboard key (leaked
+    from the VKB reference table), the action must be dropped and the reply
+    transformed into a description, not a fake press."""
+    args = json.dumps(
+        {
+            "action_name": "Unlock doors",
+            "keys": ["R-Ctrl + button 26"],
+            "explanation": "Unlocks ship doors",
+        }
+    )
+    fake_client.responses.set_reply(
+        "Pressing R-Ctrl + button 26 to unlock doors.",
+        output_items=[_FakeFunctionCall("propose_sc_action", args)],
+    )
+    brain = OpenAIBrain(api_key="oa-test", web_search=False, actions_enabled=True)
+    reply = await brain.answer(b"PNG", "unlock doors")
+    assert reply.pending_action is None
+    assert "joystick" in reply.text.lower()
+
+
+@pytest.mark.asyncio
+async def test_openai_brain_rejects_unsafe_keyboard_key(fake_client):
+    args = json.dumps(
+        {
+            "action_name": "Bad combo",
+            "keys": ["alt+f4"],
+            "explanation": "Closes the game",
+        }
+    )
+    fake_client.responses.set_reply(
+        "Pressing alt+f4.",
+        output_items=[_FakeFunctionCall("propose_sc_action", args)],
+    )
+    brain = OpenAIBrain(api_key="oa-test", web_search=False, actions_enabled=True)
+    reply = await brain.answer(b"PNG", "close the game")
+    assert reply.pending_action is None
+
+
+@pytest.mark.asyncio
 async def test_openai_brain_includes_history_in_followup(fake_client):
     fake_client.responses.set_reply("first")
     brain = OpenAIBrain(

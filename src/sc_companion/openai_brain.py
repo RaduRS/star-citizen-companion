@@ -7,6 +7,7 @@ from openai import AsyncOpenAI
 
 from .brain import Brain, BrainReply, ConversationHistory, ProposedAction
 from .minimax_brain import BASE_SYSTEM_PROMPT, VKB_PREAMBLE
+from .sc_actions import is_safe_key
 
 KEYBOARD_DEFAULTS_PREAMBLE = (
     "\n\n--- STAR CITIZEN KEYBOARD BINDINGS (used for execution — ALWAYS use"
@@ -14,21 +15,32 @@ KEYBOARD_DEFAULTS_PREAMBLE = (
 )
 
 ACTIONS_SYSTEM_SUFFIX = (
-    "\n\nYOU CAN PRESS STAR CITIZEN'S KEYBOARD KEYS for the user via the "
-    "propose_sc_action function. When you call this function the keys are "
-    "pressed IMMEDIATELY — there is NO confirmation step. Do NOT ask the "
-    "user to say 'go' or 'confirm'. Just call the function and announce "
-    "what you're doing in present tense ('Opening MobiGlas', 'Engaging "
-    "quantum drive', 'Toggling lights').\n"
+    "\n\nYou CAN press Star Citizen's keyboard keys via the propose_sc_action "
+    "function. Use it CONSERVATIVELY. A wrong press is much worse than a "
+    "description of what to press — the user can always press a key "
+    "themselves, but a wrong press might fire weapons, jettison cargo, or "
+    "self-destruct.\n"
     "\n"
-    "ALWAYS call propose_sc_action when the user asks for any in-game "
-    "action:\n"
-    "- 'open mobiglas' / 'open map' / 'open inventory'\n"
-    "- 'engage quantum' / 'spool quantum' / 'lock quantum target'\n"
-    "- 'request landing' / 'self destruct' / 'eject'\n"
-    "- 'lights on' / 'gear down' / 'toggle gimbal'\n"
-    "- 'press F' / 'do it for me'\n"
-    "- 'can you open the X' / 'can you do that' (treat as a request)\n"
+    "RULE: Before calling propose_sc_action, find an entry in the KEYBOARD "
+    "BINDINGS table whose action ID or humanized name is an EXACT or "
+    "near-exact phrasing match for what the user asked. If there is no "
+    "exact match, do NOT call the function. Speak a description instead.\n"
+    "\n"
+    "Examples of WRONG semantic matching (do NOT do this):\n"
+    "- User: 'turn on engines' → there is no action named 'engines on'. Do "
+    "NOT map this to throttle_up just because it involves the engine. "
+    "Decline: 'Turning on engines isn't a single keyboard action — flight "
+    "ready toggles the whole power state. Want me to try flight ready?'\n"
+    "- User: 'request undock' → there's no `v_atc_request` entry. ATC was "
+    "added after the source dump. Decline: 'ATC isn't in my keyboard "
+    "reference — use your stick or the in-game comms menu.'\n"
+    "- User: 'fire missiles' if the table only has `v_weapon_launch_missile` "
+    "with no keyboard rebind → decline rather than press space/m/whatever.\n"
+    "\n"
+    "Examples of correct calls (action ID matches user's words clearly):\n"
+    "- 'open mobiglas' → mobiglas entry → press `f1`\n"
+    "- 'cycle camera view' → v_view_cycle_fwd → press `f4`\n"
+    "- 'turn lights on' → v_lights → press `3`\n"
     "\n"
     "Source-of-truth rule for which keys to press:\n"
     "1. The STAR CITIZEN KEYBOARD BINDINGS section above is the COMPLETE "
@@ -95,10 +107,26 @@ PROPOSE_ACTION_TOOL = {
 }
 
 
+# Patterns that mean the model leaked a joystick reference into the keys array
+# rather than a keyboard key. is_safe_key would also reject these at execute
+# time, but by then the TTS has already announced "Pressing <stick combo>" —
+# catching them here lets us swap to a descriptive reply.
+_JOYSTICK_LEAK_TOKENS = (
+    "button", "stick", "hat", "trigger", "pinky", "vkb",
+)
+
+
+def _looks_like_joystick(key: str) -> bool:
+    k = key.lower()
+    return any(tok in k for tok in _JOYSTICK_LEAK_TOKENS)
+
+
 def _extract_text_and_action(response: Any) -> tuple[str, ProposedAction | None]:
     """Pull the text reply and (optional) function-call payload out of a
-    Responses API response object. If the model returns only a function call
-    without spoken text, synthesize fallback text so the user hears something."""
+    Responses API response object. Reject the action (no keypress) if the
+    model proposed joystick names or unsafe keys — instead, return a
+    descriptive reply so the user hears what to press rather than a wrong
+    press."""
     text = response.output_text or ""
     action: ProposedAction | None = None
     output = getattr(response, "output", None) or []
@@ -118,9 +146,25 @@ def _extract_text_and_action(response: Any) -> tuple[str, ProposedAction | None]
         keys = args.get("keys") or []
         if not keys:
             continue
+        key_strs = [str(k) for k in keys]
+
+        # Reject if any proposed key is actually a joystick reference or
+        # otherwise fails the safety check. The brain's spoken reply might
+        # have already said "Pressing X" — overwrite it so the user gets
+        # consistent description instead of a fake press.
+        bad = [k for k in key_strs if _looks_like_joystick(k) or not is_safe_key(k)]
+        if bad:
+            action_name = str(args.get("action_name", "the action"))[:80]
+            note = (
+                f"That looks like a joystick binding, not a keyboard key — "
+                f"you'd press {' / '.join(key_strs)} on the stick to "
+                f"{action_name.lower()}."
+            )
+            return note, None
+
         action = ProposedAction(
             name=str(args.get("action_name", "SC action"))[:80],
-            keys=tuple(str(k) for k in keys),
+            keys=tuple(key_strs),
             explanation=str(args.get("explanation", "")),
         )
         break
