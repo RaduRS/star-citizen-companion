@@ -94,12 +94,24 @@ font_size = 16
 fade_seconds = 30
 ```
 
-## VKB context (TODO)
+## VKB context
 
-`src/sc_companion/data/vkb_bindings.md` is currently a placeholder. Drop
-your VKB binding doc for Star Citizen there (markdown, format-flexible) and
-restart — it'll be prepended to the brain's system prompt so it can name
-specific stick buttons in its replies.
+The VKB stick layout the brain knows is generated from
+`src/sc_companion/data/Dual VKB Gladiator NXT/layout_BK_DualVKB_4-6_exported.xml`
+(BuzZz Killer's Dual VKB Gladiator EVO Pro profile, SC 4.6) by
+`scripts/extract_vkb_bindings.py` → `data/vkb_bindings.md`. That markdown
+file is loaded at startup and prepended to the system prompt, so the brain
+answers "how do I X?" in terms of specific stick buttons.
+
+If you update the XML profile (new SC patch, rebound something), re-run:
+
+```
+python scripts/extract_vkb_bindings.py
+```
+
+The folder also ships the canonical PDFs (Ground / Ship binding charts) —
+keep those open on a second monitor for the physical button labels (T1, A4
+HAT, etc.) that the chart PDFs map to the numeric `button N` references.
 
 ## Keyboard execution
 
