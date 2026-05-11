@@ -134,7 +134,12 @@ async def test_openai_brain_rejects_joystick_leaked_into_keys(fake_client):
     brain = OpenAIBrain(api_key="oa-test", web_search=False, actions_enabled=True)
     reply = await brain.answer(b"PNG", "unlock doors")
     assert reply.pending_action is None
-    assert "joystick" in reply.text.lower()
+    # User asked us to act — if we can't, just say so. Do NOT mention the
+    # joystick / stick / controller in the spoken reply.
+    text_lower = reply.text.lower()
+    assert "can't press" in text_lower or "no keyboard" in text_lower or "keyboard binding" in text_lower
+    for forbidden in ("joystick", "stick", "vkb", "button"):
+        assert forbidden not in text_lower, f"reply leaked '{forbidden}': {reply.text}"
 
 
 @pytest.mark.asyncio
