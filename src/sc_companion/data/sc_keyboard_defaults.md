@@ -129,7 +129,7 @@ Generated from `src/sc_companion/data/sc_defaults_3.0.xml` (Ben Humpert, *All Ke
 - `v_power_toggle_group_1` (Power Toggle Group 1) — `7`
 - `v_power_toggle_group_2` (Power Toggle Group 2) — `6`
 - `v_power_toggle_group_3` (Power Toggle Group 3) — `4`
-- `v_power_toggle` (Power Toggle) — `5`
+- `v_power_toggle` (Power Toggle) — `u` (4.x override)
 
 ## Ship — radar / scanning (`spaceship_radar`)
 
@@ -305,4 +305,4 @@ Generated from `src/sc_companion/data/sc_defaults_3.0.xml` (Ben Humpert, *All Ke
 - `view_restore_defaults` (View Restore Defaults) — `np_multiply`
 
 ---
-_227 keyboard bindings parsed. ⚠ = patch-volatile category — verify with on-screen hints._
+_227 keyboard bindings parsed (1 4.x overrides applied). ⚠ = patch-volatile category — verify with on-screen hints._

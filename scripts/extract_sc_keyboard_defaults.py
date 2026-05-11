@@ -106,6 +106,14 @@ VOLATILE_CATEGORIES = {
     "spaceship_hud",           # MFD cycling shifted to alt+E/Q in 4.x
 }
 
+# Hand-maintained overrides for entries whose default key changed between
+# the 3.0 source dump and current SC. Action ID -> current key (Python
+# keyboard library syntax). Add entries here as the user reports
+# mispresses during play; this layer survives `extract_*` regeneration.
+PATCH_OVERRIDES: dict[str, str] = {
+    "v_power_toggle": "u",  # 4.x: U toggles ship power (3.0 had 5)
+}
+
 
 def translate_token(tok: str) -> str:
     """kb1 token -> human key name suitable for the keyboard library."""
@@ -190,6 +198,7 @@ def main() -> int:
     ]
 
     total = 0
+    override_count = 0
     for am in root.findall("actionmap"):
         am_name = am.get("name") or "(unnamed)"
         label = CATEGORY_LABELS.get(am_name, am_name)
@@ -202,9 +211,17 @@ def main() -> int:
                 if key is None:
                     continue
                 modifier = parse_activation(rb)
+                # Apply user-reported patch overrides over the 3.0 default.
+                # We mark the entry so the brain knows it's curated, not raw.
+                override = PATCH_OVERRIDES.get(act_name)
+                note = ""
+                if override is not None and override != key:
+                    key = override
+                    note = " (4.x override)"
+                    override_count += 1
                 rows.append(
                     f"- `{act_name}` ({humanize_action(act_name)}) — "
-                    f"`{key}`{modifier}"
+                    f"`{key}`{modifier}{note}"
                 )
                 total += 1
         if not rows:
@@ -216,13 +233,13 @@ def main() -> int:
 
     out.append("---")
     out.append(
-        f"_{total} keyboard bindings parsed. ⚠ = patch-volatile category — "
-        "verify with on-screen hints._"
+        f"_{total} keyboard bindings parsed ({override_count} 4.x overrides "
+        "applied). ⚠ = patch-volatile category — verify with on-screen hints._"
     )
 
     OUT_PATH.write_text("\n".join(out) + "\n", encoding="utf-8")
     print(f"wrote {OUT_PATH} ({OUT_PATH.stat().st_size} bytes, "
-          f"{total} bindings)")
+          f"{total} bindings, {override_count} overrides)")
     return 0
 
 
