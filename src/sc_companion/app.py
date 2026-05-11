@@ -349,9 +349,45 @@ class App:
         self._loop.call_soon_threadsafe(self._loop.stop)
 
 
+_SINGLE_INSTANCE_PORT = 53971
+
+
+def _acquire_single_instance() -> "socket.socket | None":
+    """Bind a localhost socket as a process-lifetime mutex. Returns the bound
+    socket on success (caller must keep the reference alive); returns None if
+    another instance is already running. Using a socket avoids the stale-lock
+    problems of PID/lock files when the previous process was force-killed."""
+    import socket
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.bind(("127.0.0.1", _SINGLE_INSTANCE_PORT))
+        sock.listen(1)
+    except OSError:
+        sock.close()
+        return None
+    return sock
+
+
 def main() -> int:
     _setup_logging()
     _load_dotenv(Path.cwd() / ".env")
+    instance_lock = _acquire_single_instance()
+    if instance_lock is None:
+        log.info("another instance is already running — exiting")
+        try:
+            import ctypes
+
+            ctypes.windll.user32.MessageBoxW(
+                0,
+                "Star Citizen Companion is already running.\n"
+                "Check the SC reticle icon in your system tray.",
+                "Star Citizen Companion",
+                0x40,  # MB_ICONINFORMATION
+            )
+        except Exception:
+            pass
+        return 0
     log.info("=== star-citizen-companion start ===")
     cfg = load_config()
     if not cfg.secrets.deepgram_api_key:
